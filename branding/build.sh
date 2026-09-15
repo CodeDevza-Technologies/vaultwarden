@@ -31,6 +31,22 @@ rm -f /tmp/_fav48.png
 sed -e '/<?xml/d' -e '/\.cls-3 {/,/}/d' -e 's/class="cls-3"/class="tw-fill-marketing-logo"/g' src/logo.svg > inline-logo.svg
 grep -q 'tw-fill-marketing-logo' inline-logo.svg && ! grep -q '#161616' inline-logo.svg
 
+# Sidebar logos (800x200, same frame the web-vault uses): logo + product subtitle.
+# Wordmark and subtitle use the nav foreground class; the mark keeps its colours.
+nav_logo() {  # $1 subtitle, $2 output
+  {
+    echo '<svg version="1.1" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">'
+    echo '  <svg x="0" y="8" width="600" height="129" viewBox="22 201 456 98">'
+    sed -e '/<?xml/d' -e '/<svg /d' -e '/<\/svg>/d' -e '/\.cls-3 {/,/}/d' -e 's/class="cls-3"/class="tw-fill-fg-nav"/g' src/logo.svg
+    echo '  </svg>'
+    echo "  <text x=\"150\" y=\"184\" class=\"tw-fill-fg-nav\" font-family=\"inherit\" font-size=\"38\" font-weight=\"500\">$1</text>"
+    echo '</svg>'
+  } > "$2"
+  grep -q 'tw-fill-fg-nav' "$2" && ! grep -q '#161616' "$2"
+}
+nav_logo "Password Manager" inline-nav-pm.svg
+nav_logo "Admin Console"    inline-nav-admin.svg
+
 # Email header logo (2x for retina, displayed at 190px wide)
 png src/logo.svg 380 82 /tmp/_mail-logo.png
 base64 -i /tmp/_mail-logo.png | tr -d '\n' > mail-logo.b64

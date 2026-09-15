@@ -21,12 +21,12 @@ RUN set -eu; cd /web-vault; \
       -e 's/ Vaultwarden is not associated with the Bitwarden® project nor Bitwarden Inc\. / Not affiliated with Bitwarden Inc. /g' \
       -e 's/Vaultwarden Web/Codedevza AI Vault/g' \
       -e 's/Vaultwarden/Codedevza AI Vault/g'; \
-    ! grep -rq 'Vaultwarden' . --include='*.html' --include='*.js' --include='*.json' --exclude='*.map'
+    if grep -rq 'Vaultwarden' . --include='*.html' --include='*.js' --include='*.json' --exclude='*.map'; then echo 'BRANDING: Vaultwarden string survived' >&2; exit 1; fi
 # The web-vault is served with `immutable, max-age=604800`, so append a version
 # query to every reference we rewrote or replaced (bundle, stylesheet, logos,
 # icons); otherwise returning users see the old branding for up to a week.
 # Bump BRAND_REV whenever branding/ or the sed rules above change.
-ARG BRAND_REV=1
+ARG BRAND_REV=2
 RUN set -eu; cd /web-vault; \
     sed -i -E \
       -e "s#(images/(icons/)?(logo|icon|favicon|android-chrome|apple-touch|mstile|safari-pinned)[A-Za-z0-9@_-]*\.(svg|png))#\1?v=${BRAND_REV}#g" \
@@ -37,8 +37,26 @@ RUN set -eu; cd /web-vault; \
 COPY branding/inline-logo.svg /tmp/inline-logo.svg
 RUN set -eu; cd /web-vault; \
     perl -0pi -e 'BEGIN{local $/; open my $f, "<", "/tmp/inline-logo.svg" or die; $l=<$f>; close $f} s#<svg version="1.1" viewBox="0 0 290 60".*?</svg>#$l#s' app/main.*.js; \
-    grep -q 'tw-fill-marketing-logo' app/main.*.js && ! grep -q 'viewBox="0 0 290 60"' app/main.*.js; \
+    grep -q 'tw-fill-marketing-logo' app/main.*.js; \
+    if grep -q 'viewBox="0 0 290 60"' app/main.*.js; then echo 'BRANDING: login logo not replaced' >&2; exit 1; fi; \
     rm /tmp/inline-logo.svg
+# Sidebar logos ("Password Manager" in the main bundle, "Admin Console" in a
+# lazy chunk). Lazy chunks are loaded by hash from the webpack runtime, so any
+# chunk we modify gets renamed and its hash rewritten in the runtime map to
+# defeat the 7-day immutable cache.
+COPY branding/inline-nav-pm.svg branding/inline-nav-admin.svg /tmp/
+RUN set -eu; cd /web-vault; \
+    for f in $(grep -l 'viewBox="0 0 800 200"' *.js app/*.js); do \
+      perl -0pi -e 'BEGIN{local $/; open my $p,"<","/tmp/inline-nav-pm.svg" or die; $pm=<$p>; open my $a,"<","/tmp/inline-nav-admin.svg" or die; $ad=<$a>} s#<svg version="1.1" viewBox="0 0 800 200".*?</svg>#($& =~ /admin-console-logo/ ? $ad : $pm)#gse' "$f"; \
+      case "$f" in app/*) ;; *) \
+        hash="${f#*.}"; hash="${hash%.js}"; id="${f%%.*}"; \
+        mv "$f" "$id.$hash-b${BRAND_REV}.js"; \
+        sed -i "s/\"$hash\"/\"$hash-b${BRAND_REV}\"/g" app/main.*.js *.js;; \
+      esac; \
+    done; \
+    if grep -q 'password-manager-logo-clip\|admin-console-logo-clip' *.js app/*.js; then echo 'BRANDING: sidebar logo not replaced' >&2; exit 1; fi; \
+    grep -q 'Password Manager</text>' app/main.*.js; grep -lq 'Admin Console</text>' *.js; \
+    rm /tmp/inline-nav-pm.svg /tmp/inline-nav-admin.svg
 # Handlebars overrides: email templates, admin panel, 404 page, extra CSS.
 # Anything not present here falls back to the templates embedded in the binary.
 COPY templates/ /templates/
