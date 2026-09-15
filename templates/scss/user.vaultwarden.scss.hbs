@@ -1,0 +1,11 @@
+/* Codedevza AI Vault customisations. Loaded by /css/vaultwarden.css after the built-in rules. */
+
+/* Org creation is restricted to ORG_CREATION_USERS; hide the entry points for everyone.
+   Allowed admins can still open /#/create-organization directly. */
+a[href$="/create-organization"],
+a[routerlink="/create-organization"],
+button[routerlink="/create-organization"],
+/* product switcher's "Bitwarden for business" upsell */
+a[href="https://bitwarden.com/products/business/"] {
+  @extend %vw-hide;
+}
