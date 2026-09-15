@@ -1,0 +1,38 @@
+# Local dev stack mirroring the Railway template (Vaultwarden + Postgres).
+# Usage: cp .env.example .env && docker compose up -d
+services:
+  vaultwarden:
+    build:
+      context: .
+      args:
+        PORT: 8080
+    ports:
+      - "${VW_PORT:-8080}:8080"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://vaultwarden:${POSTGRES_PASSWORD:-vaultwarden}@postgres:5432/vaultwarden
+    volumes:
+      - vw-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vaultwarden
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vaultwarden}
+      POSTGRES_DB: vaultwarden
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vaultwarden"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  vw-data:
+  pg-data:
