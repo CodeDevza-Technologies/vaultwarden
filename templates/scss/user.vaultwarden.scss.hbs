@@ -9,3 +9,12 @@ button[routerlink="/create-organization"],
 a[href="https://bitwarden.com/products/business/"] {
   @extend %vw-hide;
 }
+
+/* Send → "Who can access" → "Specific people" (email verification). Vaultwarden
+   rejects Sends with recipient emails ("Sends with email verification is not
+   supported"), so hide the option instead of letting people hit the error.
+   Options render in fixed order: anyone / specific people / password. */
+tools-send-details [formcontrolname="authType"] bit-radio-button:nth-of-type(2),
+tools-send-details [formcontrolname="authType"] > *:nth-child(2):has(input[type="radio"]) {
+  @extend %vw-hide;
+}
